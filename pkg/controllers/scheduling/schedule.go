@@ -11,6 +11,7 @@ import (
 	clusterapiv1alpha1 "open-cluster-management.io/api/cluster/v1alpha1"
 	"open-cluster-management.io/placement/pkg/plugins"
 	"open-cluster-management.io/placement/pkg/plugins/balance"
+	"open-cluster-management.io/placement/pkg/plugins/demo"
 	"open-cluster-management.io/placement/pkg/plugins/predicate"
 	"open-cluster-management.io/placement/pkg/plugins/steady"
 )
@@ -72,6 +73,7 @@ func NewPluginScheduler(handle plugins.Handle) *pluginScheduler {
 		prioritizers: []plugins.Prioritizer{
 			steady.New(handle),
 			balance.New(handle),
+			demo.New(handle),
 		},
 	}
 }

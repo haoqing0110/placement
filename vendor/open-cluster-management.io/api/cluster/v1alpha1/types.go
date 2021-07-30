@@ -230,6 +230,39 @@ type PlacementSpec struct {
 	// Predicates represent a slice of predicates to select ManagedClusters. The predicates are ORed.
 	// +optional
 	Predicates []ClusterPredicate `json:"predicates,omitempty"`
+
+	// Policies represent a slice of policies to score ManagedClusters.
+	// +optional
+	Policies []PolicyConfig `json:"polices,omitempty"`
+
+	// ResourceWeights represent a slice of resource weights to score ManagedClusters under policy POLICY_LEAST_UTILIZATION.
+	// +optional
+	ResourceWeights []ResourceWeight `json:"resourceWeights,omitempty"`
+}
+
+type policyType int32
+
+const (
+	POLICY_LEAST_UTILIZATION policyType = 0
+	POLICY_LEAST_PLACEMENT   policyType = 1
+	POLICY_STEADY            policyType = 2
+)
+
+type resourceType int32
+
+const (
+	RESOURCE_CPU    resourceType = 0
+	RESOURCE_MEMORY resourceType = 1
+)
+
+type PolicyConfig struct {
+	PolicyType   policyType `json:"type,omitempty"`
+	PolicyWeight int32      `json:"weight,omitempty"`
+}
+
+type ResourceWeight struct {
+	ResourceType   resourceType `json:"type,omitempty"`
+	ResourceWeight int32        `json:"weight,omitempty"`
 }
 
 // ClusterPredicate represents a predicate to select ManagedClusters.
