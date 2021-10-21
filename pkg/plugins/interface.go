@@ -42,7 +42,11 @@ type Filter interface {
 type Prioritizer interface {
 	Plugin
 
-	// Score gives the score to a list of the clusters,  it returns a map with the key as
+	// PreScore() do some prepare work before Score().
+	// For example, creating ManagedClusterScalar CR before Score().
+	PreScore(ctx context.Context, placement *clusterapiv1alpha1.Placement, clusters []*clusterapiv1.ManagedCluster) error
+
+	// Score gives the score to a list of the clusters, it returns a map with the key as
 	// the cluster name.
 	Score(ctx context.Context, placement *clusterapiv1alpha1.Placement, clusters []*clusterapiv1.ManagedCluster) (map[string]int64, error)
 }

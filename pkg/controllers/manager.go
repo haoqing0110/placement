@@ -3,12 +3,15 @@ package hub
 import (
 	"context"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/openshift/library-go/pkg/controller/controllercmd"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apiserver/pkg/server/mux"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/events"
+	"k8s.io/klog/v2"
 	clusterclient "open-cluster-management.io/api/client/cluster/clientset/versioned"
 	clusterscheme "open-cluster-management.io/api/client/cluster/clientset/versioned/scheme"
 	clusterinformers "open-cluster-management.io/api/client/cluster/informers/externalversions"
@@ -68,10 +71,52 @@ func RunControllerManager(ctx context.Context, controllerContext *controllercmd.
 
 	go schedulingController.Run(ctx, 1)
 
+	ticker := time.NewTicker(10 * time.Minute)
+	defer ticker.Stop()
+	go houseclean(ctx, clusterClient, ticker)
+
 	<-ctx.Done()
 	return nil
 }
 
 func installDebugger(mux *mux.PathRecorderMux, d *debugger.Debugger) {
 	mux.HandlePrefix(debugger.DebugPath, http.HandlerFunc(d.Handler))
+}
+
+// houseclean cleans the uunused ManagedClusterScalar CRs.
+func houseclean(ctx context.Context, clusterClient *clusterclient.Clientset, ticker *time.Ticker) {
+	for {
+		select {
+		case <-ticker.C:
+			klog.Infof("House cleaning ...")
+			prioritizerCount := map[string]int64{}
+
+			placments, err := clusterClient.ClusterV1alpha1().Placements("").List(ctx, metav1.ListOptions{})
+			if err != nil {
+				klog.Warningf("Failed to clean ManagedClusterScalars : %s", err)
+			}
+
+			managedClusterScalars, err := clusterClient.ClusterV1alpha1().ManagedClusterScalars("").List(ctx, metav1.ListOptions{})
+			if err != nil {
+				klog.Warningf("Failed to clean ManagedClusterScalars : %s", err)
+			}
+
+			for _, p := range placments.Items {
+				for _, c := range p.Spec.PrioritizerPolicy.Configurations {
+					if strings.HasPrefix(c.Name, "Customize") {
+						prioritizerCount[c.Name] += 1
+					}
+				}
+			}
+
+			for _, m := range managedClusterScalars.Items {
+				if _, exist := prioritizerCount[m.Spec.PrioritizerName]; !exist {
+					err := clusterClient.ClusterV1alpha1().ManagedClusterScalars(m.Namespace).Delete(context.Background(), m.Name, metav1.DeleteOptions{})
+					if err != nil {
+						klog.Warningf("Failed to clean ManagedClusterScalars : %s", err)
+					}
+				}
+			}
+		}
+	}
 }
