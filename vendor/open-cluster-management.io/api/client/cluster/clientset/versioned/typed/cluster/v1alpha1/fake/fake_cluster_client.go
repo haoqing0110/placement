@@ -16,6 +16,10 @@ func (c *FakeClusterV1alpha1) ClusterClaims() v1alpha1.ClusterClaimInterface {
 	return &FakeClusterClaims{c}
 }
 
+func (c *FakeClusterV1alpha1) ManagedClusterScores(namespace string) v1alpha1.ManagedClusterScoreInterface {
+	return &FakeManagedClusterScores{c, namespace}
+}
+
 func (c *FakeClusterV1alpha1) ManagedClusterSets() v1alpha1.ManagedClusterSetInterface {
 	return &FakeManagedClusterSets{c}
 }

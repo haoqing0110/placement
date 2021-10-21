@@ -418,3 +418,38 @@ type PlacementDecisionList struct {
 	// Items is a list of PlacementDecision.
 	Items []PlacementDecision `json:"items"`
 }
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:scope="Namespaced"
+// +kubebuilder:subresource:status
+type ManagedClusterScore struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	// Status represents TODO
+	// +optional
+	Status ManagedClusterScoreStatus `json:"status,omitempty"`
+}
+
+type ManagedClusterScoreStatus struct {
+	// Conditions contains the different condition statuses for this managed cluster.
+	Conditions []metav1.Condition `json:"conditions"`
+
+	// Score contains a scalable value of this managed cluster.
+	Score int64 `json:"score,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// ManagedClusterScoreList is a collection of managed cluster score.
+type ManagedClusterScoreList struct {
+	metav1.TypeMeta `json:",inline"`
+	// Standard list metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds
+	// +optional
+	metav1.ListMeta `json:"metadata,omitempty"`
+
+	// Items is a list of managed clusters.
+	Items []ManagedClusterScore `json:"items"`
+}

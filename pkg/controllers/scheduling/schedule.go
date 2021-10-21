@@ -6,7 +6,9 @@ import (
 	"sort"
 	"strings"
 
+	"k8s.io/client-go/kubernetes"
 	kevents "k8s.io/client-go/tools/events"
+	"k8s.io/klog/v2"
 	clusterclient "open-cluster-management.io/api/client/cluster/clientset/versioned"
 	clusterlisterv1alpha1 "open-cluster-management.io/api/client/cluster/listers/cluster/v1alpha1"
 	clusterapiv1 "open-cluster-management.io/api/cluster/v1"
@@ -27,6 +29,7 @@ type Scheduler interface {
 		ctx context.Context,
 		placement *clusterapiv1alpha1.Placement,
 		clusters []*clusterapiv1.ManagedCluster,
+		//		scorer ScoreManager,
 	) (ScheduleResult, error)
 }
 
@@ -75,15 +78,17 @@ type schedulerHandler struct {
 	recorder                kevents.EventRecorder
 	placementDecisionLister clusterlisterv1alpha1.PlacementDecisionLister
 	clusterClient           clusterclient.Interface
+	kubeClient              *kubernetes.Clientset
 }
 
 func NewSchedulerHandler(
-	clusterClient clusterclient.Interface, placementDecisionLister clusterlisterv1alpha1.PlacementDecisionLister, recorder kevents.EventRecorder) plugins.Handle {
+	clusterClient clusterclient.Interface, kubeClient *kubernetes.Clientset, placementDecisionLister clusterlisterv1alpha1.PlacementDecisionLister, recorder kevents.EventRecorder) plugins.Handle {
 
 	return &schedulerHandler{
 		recorder:                recorder,
 		placementDecisionLister: placementDecisionLister,
 		clusterClient:           clusterClient,
+		kubeClient:              kubeClient,
 	}
 }
 
@@ -97,6 +102,10 @@ func (s *schedulerHandler) DecisionLister() clusterlisterv1alpha1.PlacementDecis
 
 func (s *schedulerHandler) ClusterClient() clusterclient.Interface {
 	return s.clusterClient
+}
+
+func (s *schedulerHandler) KubeClient() *kubernetes.Clientset {
+	return s.kubeClient
 }
 
 // Initialize the default prioritizer weight.
@@ -161,6 +170,7 @@ func (s *pluginScheduler) Schedule(
 	if err != nil {
 		return nil, err
 	}
+
 	// score clusters
 	scoreSum := PrioritizerScore{}
 	for _, cluster := range filtered {
@@ -172,6 +182,11 @@ func (s *pluginScheduler) Schedule(
 		if weight == 0 {
 			results.scoreRecords = append(results.scoreRecords, PrioritizerResult{Name: p.Name(), Weight: weight, Scores: nil})
 			continue
+		}
+
+		err := p.PreScore(ctx, placement, filtered)
+		if err != nil {
+			klog.Warning("Prioritizer %s PreScore() failed: %s", p.Name(), err)
 		}
 
 		score, err := p.Score(ctx, placement, filtered)
@@ -214,6 +229,66 @@ func (s *pluginScheduler) Schedule(
 
 	return results, nil
 }
+
+/*type ScoreManager struct {
+	handle     plugins.Handle
+	kubeclient *kubernetes.Clientset
+}
+
+func NewScoreManager(handle plugins.Handle, kubeclient *kubernetes.Clientset) *ScoreManager {
+	return &ScoreManager{
+		handle:     handle,
+		kubeclient: kubeclient,
+	}
+}
+
+func (s *ScoreManager) CreateManagedClusterScoreCRs(clusters []*clusterapiv1.ManagedCluster, pluginName string) error {
+	clusterClient := s.handle.ClusterClient()
+	kubeClient := s.kubeclient
+	for _, cluster := range clusters {
+		name := strings.ToLower(cluster.Name + "-" + pluginName)
+		namespace := cluster.Name
+
+		// create ManagedClusterScore namespace
+		ns := &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: namespace,
+			},
+		}
+		_, err := kubeClient.CoreV1().Namespaces().Create(context.Background(), ns, metav1.CreateOptions{})
+		if err != nil {
+			klog.Infof("Creating namespace failed :%s", err)
+		}
+
+		// create ManagedClusterScore CR
+		_, err = clusterClient.ClusterV1alpha1().ManagedClusterScores(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		switch {
+		case errors.IsNotFound(err):
+			managedClusterScore := &clusterapiv1alpha1.ManagedClusterScore{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      name,
+					Namespace: namespace,
+				},
+			}
+			_, err := clusterClient.ClusterV1alpha1().ManagedClusterScores(namespace).Create(context.Background(), managedClusterScore, metav1.CreateOptions{})
+			if err != nil {
+				klog.Errorf("Creating ManagedClusterScore failed :%s", err)
+			}
+		case err != nil:
+			return err
+		}
+	}
+	return nil
+}
+*/
+
+/*func (*scoreManager) deleteManagedClusterScoreCRs() {
+
+}
+
+func (*scoreManager) cleanManagedClusterScoreCRs() {
+
+}*/
 
 // makeClusterDecisions selects clusters based on given cluster slice and then creates
 // cluster decisions.

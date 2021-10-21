@@ -10,6 +10,8 @@ import (
 type Interface interface {
 	// ClusterClaims returns a ClusterClaimInformer.
 	ClusterClaims() ClusterClaimInformer
+	// ManagedClusterScores returns a ManagedClusterScoreInformer.
+	ManagedClusterScores() ManagedClusterScoreInformer
 	// ManagedClusterSets returns a ManagedClusterSetInformer.
 	ManagedClusterSets() ManagedClusterSetInformer
 	// ManagedClusterSetBindings returns a ManagedClusterSetBindingInformer.
@@ -34,6 +36,11 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // ClusterClaims returns a ClusterClaimInformer.
 func (v *version) ClusterClaims() ClusterClaimInformer {
 	return &clusterClaimInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+}
+
+// ManagedClusterScores returns a ManagedClusterScoreInformer.
+func (v *version) ManagedClusterScores() ManagedClusterScoreInformer {
+	return &managedClusterScoreInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // ManagedClusterSets returns a ManagedClusterSetInformer.

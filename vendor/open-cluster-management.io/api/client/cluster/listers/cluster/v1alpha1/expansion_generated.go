@@ -6,6 +6,14 @@ package v1alpha1
 // ClusterClaimLister.
 type ClusterClaimListerExpansion interface{}
 
+// ManagedClusterScoreListerExpansion allows custom methods to be added to
+// ManagedClusterScoreLister.
+type ManagedClusterScoreListerExpansion interface{}
+
+// ManagedClusterScoreNamespaceListerExpansion allows custom methods to be added to
+// ManagedClusterScoreNamespaceLister.
+type ManagedClusterScoreNamespaceListerExpansion interface{}
+
 // ManagedClusterSetListerExpansion allows custom methods to be added to
 // ManagedClusterSetLister.
 type ManagedClusterSetListerExpansion interface{}

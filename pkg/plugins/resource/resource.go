@@ -2,10 +2,13 @@ package resource
 
 import (
 	"context"
-	"fmt"
 	"regexp"
-	"sort"
+	"strings"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	clusterapiv1 "open-cluster-management.io/api/cluster/v1"
 	clusterapiv1alpha1 "open-cluster-management.io/api/cluster/v1alpha1"
 	"open-cluster-management.io/placement/pkg/plugins"
@@ -77,17 +80,74 @@ func (r *ResourcePrioritizer) Description() string {
 	return description
 }
 
-func (r *ResourcePrioritizer) Score(ctx context.Context, placement *clusterapiv1alpha1.Placement, clusters []*clusterapiv1.ManagedCluster) (map[string]int64, error) {
-	if r.algorithm == "Allocatable" {
-		return mostResourceAllocatableScores(r.resource, clusters)
+func (r *ResourcePrioritizer) PreScore(ctx context.Context, placement *clusterapiv1alpha1.Placement, clusters []*clusterapiv1.ManagedCluster) error {
+	clusterClient := r.handle.ClusterClient()
+	kubeClient := r.handle.KubeClient()
+
+	for _, cluster := range clusters {
+		name := strings.ToLower(cluster.Name + "-" + r.Name())
+		namespace := cluster.Name
+
+		// create ManagedClusterScore namespace
+		ns := &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: namespace,
+			},
+		}
+		_, err := kubeClient.CoreV1().Namespaces().Create(context.Background(), ns, metav1.CreateOptions{})
+		if err != nil {
+			klog.Infof("%s", err)
+		}
+
+		// create ManagedClusterScore CR
+		_, err = clusterClient.ClusterV1alpha1().ManagedClusterScores(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		switch {
+		case errors.IsNotFound(err):
+			managedClusterScore := &clusterapiv1alpha1.ManagedClusterScore{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      name,
+					Namespace: namespace,
+				},
+			}
+			_, err := clusterClient.ClusterV1alpha1().ManagedClusterScores(namespace).Create(context.Background(), managedClusterScore, metav1.CreateOptions{})
+			if err != nil {
+				return err
+			}
+		case err != nil:
+			return err
+		}
 	}
-	return nil, nil
+
+	return nil
+}
+
+func (r *ResourcePrioritizer) Score(ctx context.Context, placement *clusterapiv1alpha1.Placement, clusters []*clusterapiv1.ManagedCluster) (map[string]int64, error) {
+	/*	if r.algorithm == "Allocatable" {
+			return mostResourceAllocatableScores(r.resource, clusters)
+		}
+	*/
+	scores := map[string]int64{}
+	for _, cluster := range clusters {
+		name := strings.ToLower(cluster.Name + "-" + r.Name())
+		namespace := cluster.Name
+		// create ManagedClusterScore CR
+		managedClusterScore, err := r.handle.ClusterClient().ClusterV1alpha1().ManagedClusterScores(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		if err != nil {
+			klog.Errorf("Getting ManagedClusterScore failed :%s", err)
+		}
+		scores[cluster.Name] = managedClusterScore.Status.Score
+		klog.Errorf("HQ : Getting ManagedClusterScore :%s", managedClusterScore.Status.Score)
+	}
+
+	//TODO: haoqing
+	//normarlizeScores(scores)
+	return scores, nil
 }
 
 // Calculate clusters scores based on the resource allocatable.
 // The clusters that has the most allocatable are given the highest score, while the least is given the lowest score.
 // The score range is from -100 to 100.
-func mostResourceAllocatableScores(resourceName clusterapiv1.ResourceName, clusters []*clusterapiv1.ManagedCluster) (map[string]int64, error) {
+/*func mostResourceAllocatableScores(resourceName clusterapiv1.ResourceName, clusters []*clusterapiv1.ManagedCluster) (map[string]int64, error) {
 	scores := map[string]int64{}
 
 	// get resourceName's min and max allocatable among all the clusters
@@ -152,3 +212,4 @@ func getClustersMinMaxAllocatableResource(clusters []*clusterapiv1.ManagedCluste
 	sort.Float64s(allocatable)
 	return allocatable[0], allocatable[len(allocatable)-1], nil
 }
+*/

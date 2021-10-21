@@ -39,6 +39,7 @@ func RunControllerManager(ctx context.Context, controllerContext *controllercmd.
 	scheduler := scheduling.NewPluginScheduler(
 		scheduling.NewSchedulerHandler(
 			clusterClient,
+			kubeClient,
 			clusterInformers.Cluster().V1alpha1().PlacementDecisions().Lister(),
 			recorder),
 	)

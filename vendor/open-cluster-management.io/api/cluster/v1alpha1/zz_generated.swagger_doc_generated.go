@@ -76,6 +76,33 @@ func (ClusterSelector) SwaggerDoc() map[string]string {
 	return map_ClusterSelector
 }
 
+var map_ManagedClusterScore = map[string]string{
+	"status": "Status represents TODO",
+}
+
+func (ManagedClusterScore) SwaggerDoc() map[string]string {
+	return map_ManagedClusterScore
+}
+
+var map_ManagedClusterScoreList = map[string]string{
+	"":         "ManagedClusterScoreList is a collection of managed cluster score.",
+	"metadata": "Standard list metadata. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
+	"items":    "Items is a list of managed clusters.",
+}
+
+func (ManagedClusterScoreList) SwaggerDoc() map[string]string {
+	return map_ManagedClusterScoreList
+}
+
+var map_ManagedClusterScoreStatus = map[string]string{
+	"conditions": "Conditions contains the different condition statuses for this managed cluster.",
+	"score":      "Score contains a scalable value of this managed cluster.",
+}
+
+func (ManagedClusterScoreStatus) SwaggerDoc() map[string]string {
+	return map_ManagedClusterScoreStatus
+}
+
 var map_ManagedClusterSet = map[string]string{
 	"":       "ManagedClusterSet defines a group of ManagedClusters that user's workload can run on. A workload can be defined to deployed on a ManagedClusterSet, which mean:\n  1. The workload can run on any ManagedCluster in the ManagedClusterSet\n  2. The workload cannot run on any ManagedCluster outside the ManagedClusterSet\n  3. The service exposed by the workload can be shared in any ManagedCluster in the ManagedClusterSet\n\nIn order to assign a ManagedCluster to a certian ManagedClusterSet, add a label with name `cluster.open-cluster-management.io/clusterset` on the ManagedCluster to refers to the ManagedClusterSet. User is not allow to add/remove this label on a ManagedCluster unless they have a RBAC rule to CREATE on a virtual subresource of managedclustersets/join. In order to update this label, user must have the permission on both the old and new ManagedClusterSet.",
 	"spec":   "Spec defines the attributes of the ManagedClusterSet",
