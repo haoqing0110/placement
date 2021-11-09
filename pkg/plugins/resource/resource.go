@@ -88,6 +88,7 @@ func (r *ResourcePrioritizer) PreScore(ctx context.Context, placement *clusterap
 		name := strings.ToLower(cluster.Name + "-" + r.Name())
 		namespace := cluster.Name
 
+		// TODO: delete below code before merge PR, only used for prototype.
 		// create ManagedClusterScore namespace
 		ns := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{

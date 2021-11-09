@@ -132,6 +132,7 @@ func NewPluginScheduler(handle plugins.Handle) *pluginScheduler {
 			steady.New(handle),
 			resource.NewResourcePrioritizerBuilder(handle).WithPrioritizerName("ResourceAllocatableCPU").Build(),
 			resource.NewResourcePrioritizerBuilder(handle).WithPrioritizerName("ResourceAllocatableMemory").Build(),
+			resource.NewResourcePrioritizerBuilder(handle).WithPrioritizerName("Customized").Build(),
 		},
 		prioritizerWeights: defaultPrioritizerConfig,
 	}
@@ -185,11 +186,15 @@ func (s *pluginScheduler) Schedule(
 		}
 
 		err := p.PreScore(ctx, placement, filtered)
+		// placment.config, find customized-xxx, create customized-xxx CR.
 		if err != nil {
-			klog.Warning("Prioritizer %s PreScore() failed: %s", p.Name(), err)
+			klog.Warningf("Prioritizer %s PreScore() failed: %s", p.Name(), err)
 		}
 
 		score, err := p.Score(ctx, placement, filtered)
+		// placment,config, get data from customized-xxx. sum-up score.
+		// data1 = customized-xxx * weight1
+		// data2 = customized-yyy * weight2
 		if err != nil {
 			return nil, err
 		}
@@ -229,66 +234,6 @@ func (s *pluginScheduler) Schedule(
 
 	return results, nil
 }
-
-/*type ScoreManager struct {
-	handle     plugins.Handle
-	kubeclient *kubernetes.Clientset
-}
-
-func NewScoreManager(handle plugins.Handle, kubeclient *kubernetes.Clientset) *ScoreManager {
-	return &ScoreManager{
-		handle:     handle,
-		kubeclient: kubeclient,
-	}
-}
-
-func (s *ScoreManager) CreateManagedClusterScoreCRs(clusters []*clusterapiv1.ManagedCluster, pluginName string) error {
-	clusterClient := s.handle.ClusterClient()
-	kubeClient := s.kubeclient
-	for _, cluster := range clusters {
-		name := strings.ToLower(cluster.Name + "-" + pluginName)
-		namespace := cluster.Name
-
-		// create ManagedClusterScore namespace
-		ns := &corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: namespace,
-			},
-		}
-		_, err := kubeClient.CoreV1().Namespaces().Create(context.Background(), ns, metav1.CreateOptions{})
-		if err != nil {
-			klog.Infof("Creating namespace failed :%s", err)
-		}
-
-		// create ManagedClusterScore CR
-		_, err = clusterClient.ClusterV1alpha1().ManagedClusterScores(namespace).Get(context.Background(), name, metav1.GetOptions{})
-		switch {
-		case errors.IsNotFound(err):
-			managedClusterScore := &clusterapiv1alpha1.ManagedClusterScore{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      name,
-					Namespace: namespace,
-				},
-			}
-			_, err := clusterClient.ClusterV1alpha1().ManagedClusterScores(namespace).Create(context.Background(), managedClusterScore, metav1.CreateOptions{})
-			if err != nil {
-				klog.Errorf("Creating ManagedClusterScore failed :%s", err)
-			}
-		case err != nil:
-			return err
-		}
-	}
-	return nil
-}
-*/
-
-/*func (*scoreManager) deleteManagedClusterScoreCRs() {
-
-}
-
-func (*scoreManager) cleanManagedClusterScoreCRs() {
-
-}*/
 
 // makeClusterDecisions selects clusters based on given cluster slice and then creates
 // cluster decisions.
