@@ -1,21 +1,27 @@
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: managedclusterscores.cluster.open-cluster-management.io
+  name: managedclusterscalars.cluster.open-cluster-management.io
 spec:
   group: cluster.open-cluster-management.io
   names:
-    kind: ManagedClusterScore
-    listKind: ManagedClusterScoreList
-    plural: managedclusterscores
-    singular: managedclusterscore
+    kind: ManagedClusterScalar
+    listKind: ManagedClusterScalarList
+    plural: managedclusterscalars
+    singular: managedclusterscalar
   preserveUnknownFields: false
   scope: Namespaced
   subresources:
     status: {}
   validation:
     openAPIV3Schema:
+      description: ManagedClusterScalar represents a scalable value (aka score) of
+        one managed cluster. Each ManagedClusterScalar only represents the scalar
+        value of one prioritizer. ManagedClusterScalar is a namesapce scoped resource.
+        The namespace of the resource is the cluster namespace.
       type: object
+      required:
+      - spec
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -29,13 +35,24 @@ spec:
           type: string
         metadata:
           type: object
-        status:
-          description: Status represents TODO
+        spec:
+          description: Spec defines the attributes of the ManagedClusterScalar.
           type: object
+          required:
+          - prioritizerName
+          properties:
+            prioritizerName:
+              description: PrioritizerName will be the prioritizer name used in placement.
+              type: string
+        status:
+          description: Status represents the status of the ManagedClusterScalar.
+          type: object
+          required:
+          - validUntil
           properties:
             conditions:
-              description: Conditions contains the different condition statuses for
-                this managed cluster.
+              description: Conditions contain the different condition statuses for
+                this managed cluster scalar.
               type: array
               items:
                 description: "Condition contains details for one aspect of the current
@@ -104,10 +121,17 @@ spec:
                     type: string
                     maxLength: 316
                     pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
-            score:
-              description: Score contains a scalable value of this managed cluster.
+            scalar:
+              description: Scalar contains a scalable value of this managed cluster.
               type: integer
               format: int64
+            validUntil:
+              description: ValidUntil defines the time this scalar is valid. After
+                this time, the scalar is considered to be invalid by placement. nil
+                means never expire. The controller ownning this resource should keep
+                the scalar up-to-date.
+              type: string
+              format: date-time
   version: v1alpha1
   versions:
   - name: v1alpha1

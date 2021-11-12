@@ -4,7 +4,7 @@ go 1.16
 
 replace github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.1 // ensure compatible between controller-runtime and kube-openapi
 
-replace open-cluster-management.io/api v0.0.0-20210927063308-2c6896161c48 => github.com/haoqing0110/api v0.0.0-20211021030927-af39ebdbc930
+replace open-cluster-management.io/api v0.0.0-20210927063308-2c6896161c48 => github.com/haoqing0110/api v0.0.0-20211112064713-ec8cd7b3e993
 
 require (
 	github.com/onsi/ginkgo v1.14.1

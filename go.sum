@@ -301,6 +301,8 @@ github.com/haoqing0110/api v0.0.0-20211020085747-fac814e30b64 h1:Y5Ejmo1+iD/PXPy
 github.com/haoqing0110/api v0.0.0-20211020085747-fac814e30b64/go.mod h1:9qiA5h/8kvPQnJEOlAPHVjRO9a1jCmDhGzvgMBvXEaE=
 github.com/haoqing0110/api v0.0.0-20211021030927-af39ebdbc930 h1:EMa34KgeltEaUznuTyV7YwAlj6dyjCw0X3BsqkFB3ng=
 github.com/haoqing0110/api v0.0.0-20211021030927-af39ebdbc930/go.mod h1:9qiA5h/8kvPQnJEOlAPHVjRO9a1jCmDhGzvgMBvXEaE=
+github.com/haoqing0110/api v0.0.0-20211112064713-ec8cd7b3e993 h1:2xdVoX/GknEWBqWK8dsmfCfpXhwWul84VQxevET5v5w=
+github.com/haoqing0110/api v0.0.0-20211112064713-ec8cd7b3e993/go.mod h1:9qiA5h/8kvPQnJEOlAPHVjRO9a1jCmDhGzvgMBvXEaE=
 github.com/hashicorp/consul/api v1.1.0/go.mod h1:VmuI/Lkw1nC05EYQWNKwWGbkg+FbDBtguAZLlVdkD9Q=
 github.com/hashicorp/consul/sdk v0.1.1/go.mod h1:VKf9jXwCTEY1QZP2MOLRhb5i/I/ssyNV1vwHyQBF0x8=
 github.com/hashicorp/errwrap v1.0.0/go.mod h1:YH+1FKiLXxHSkmPseP+kNlulaMuP3n2brvKWEqk/Jc4=

@@ -11,7 +11,7 @@ import (
 type ClusterV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	ClusterClaimsGetter
-	ManagedClusterScoresGetter
+	ManagedClusterScalarsGetter
 	ManagedClusterSetsGetter
 	ManagedClusterSetBindingsGetter
 	PlacementsGetter
@@ -27,8 +27,8 @@ func (c *ClusterV1alpha1Client) ClusterClaims() ClusterClaimInterface {
 	return newClusterClaims(c)
 }
 
-func (c *ClusterV1alpha1Client) ManagedClusterScores(namespace string) ManagedClusterScoreInterface {
-	return newManagedClusterScores(c, namespace)
+func (c *ClusterV1alpha1Client) ManagedClusterScalars(namespace string) ManagedClusterScalarInterface {
+	return newManagedClusterScalars(c, namespace)
 }
 
 func (c *ClusterV1alpha1Client) ManagedClusterSets() ManagedClusterSetInterface {

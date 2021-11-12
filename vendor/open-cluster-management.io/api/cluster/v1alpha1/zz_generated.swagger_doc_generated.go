@@ -76,31 +76,44 @@ func (ClusterSelector) SwaggerDoc() map[string]string {
 	return map_ClusterSelector
 }
 
-var map_ManagedClusterScore = map[string]string{
-	"status": "Status represents TODO",
+var map_ManagedClusterScalar = map[string]string{
+	"":       "ManagedClusterScalar represents a scalable value (aka score) of one managed cluster. Each ManagedClusterScalar only represents the scalar value of one prioritizer. ManagedClusterScalar is a namesapce scoped resource. The namespace of the resource is the cluster namespace.",
+	"spec":   "Spec defines the attributes of the ManagedClusterScalar.",
+	"status": "Status represents the status of the ManagedClusterScalar.",
 }
 
-func (ManagedClusterScore) SwaggerDoc() map[string]string {
-	return map_ManagedClusterScore
+func (ManagedClusterScalar) SwaggerDoc() map[string]string {
+	return map_ManagedClusterScalar
 }
 
-var map_ManagedClusterScoreList = map[string]string{
-	"":         "ManagedClusterScoreList is a collection of managed cluster score.",
+var map_ManagedClusterScalarList = map[string]string{
+	"":         "ManagedClusterScalarList is a collection of managed cluster scalar.",
 	"metadata": "Standard list metadata. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
-	"items":    "Items is a list of managed clusters.",
+	"items":    "Items is a list of managed clusters",
 }
 
-func (ManagedClusterScoreList) SwaggerDoc() map[string]string {
-	return map_ManagedClusterScoreList
+func (ManagedClusterScalarList) SwaggerDoc() map[string]string {
+	return map_ManagedClusterScalarList
 }
 
-var map_ManagedClusterScoreStatus = map[string]string{
-	"conditions": "Conditions contains the different condition statuses for this managed cluster.",
-	"score":      "Score contains a scalable value of this managed cluster.",
+var map_ManagedClusterScalarSpec = map[string]string{
+	"":                "ManagedClusterScalarSpec defines the attributes of the ManagedClusterScalar.",
+	"prioritizerName": "PrioritizerName will be the prioritizer name used in placement.",
 }
 
-func (ManagedClusterScoreStatus) SwaggerDoc() map[string]string {
-	return map_ManagedClusterScoreStatus
+func (ManagedClusterScalarSpec) SwaggerDoc() map[string]string {
+	return map_ManagedClusterScalarSpec
+}
+
+var map_ManagedClusterScalarStatus = map[string]string{
+	"":           "ManagedClusterScalarStatus represents the current status of ManagedClusterScalar.",
+	"conditions": "Conditions contain the different condition statuses for this managed cluster scalar.",
+	"scalar":     "Scalar contains a scalable value of this managed cluster.",
+	"validUntil": "ValidUntil defines the time this scalar is valid. After this time, the scalar is considered to be invalid by placement. nil means never expire. The controller ownning this resource should keep the scalar up-to-date.",
+}
+
+func (ManagedClusterScalarStatus) SwaggerDoc() map[string]string {
+	return map_ManagedClusterScalarStatus
 }
 
 var map_ManagedClusterSet = map[string]string{

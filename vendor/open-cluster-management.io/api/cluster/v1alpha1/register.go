@@ -40,8 +40,6 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&PlacementList{},
 		&PlacementDecision{},
 		&PlacementDecisionList{},
-		&ManagedClusterScore{},
-		&ManagedClusterScoreList{},
 	)
 	metav1.AddToGroupVersion(scheme, GroupVersion)
 	return nil

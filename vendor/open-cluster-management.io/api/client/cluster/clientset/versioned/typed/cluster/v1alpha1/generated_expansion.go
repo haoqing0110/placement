@@ -4,7 +4,7 @@ package v1alpha1
 
 type ClusterClaimExpansion interface{}
 
-type ManagedClusterScoreExpansion interface{}
+type ManagedClusterScalarExpansion interface{}
 
 type ManagedClusterSetExpansion interface{}
 

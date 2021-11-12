@@ -10,8 +10,8 @@ import (
 type Interface interface {
 	// ClusterClaims returns a ClusterClaimInformer.
 	ClusterClaims() ClusterClaimInformer
-	// ManagedClusterScores returns a ManagedClusterScoreInformer.
-	ManagedClusterScores() ManagedClusterScoreInformer
+	// ManagedClusterScalars returns a ManagedClusterScalarInformer.
+	ManagedClusterScalars() ManagedClusterScalarInformer
 	// ManagedClusterSets returns a ManagedClusterSetInformer.
 	ManagedClusterSets() ManagedClusterSetInformer
 	// ManagedClusterSetBindings returns a ManagedClusterSetBindingInformer.
@@ -38,9 +38,9 @@ func (v *version) ClusterClaims() ClusterClaimInformer {
 	return &clusterClaimInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
-// ManagedClusterScores returns a ManagedClusterScoreInformer.
-func (v *version) ManagedClusterScores() ManagedClusterScoreInformer {
-	return &managedClusterScoreInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// ManagedClusterScalars returns a ManagedClusterScalarInformer.
+func (v *version) ManagedClusterScalars() ManagedClusterScalarInformer {
+	return &managedClusterScalarInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // ManagedClusterSets returns a ManagedClusterSetInformer.
