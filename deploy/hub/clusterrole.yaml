@@ -19,7 +19,7 @@ rules:
   resources: ["managedclusters", "managedclustersets", "managedclustersetbindings"]
   verbs: ["get", "list", "watch"]
 - apiGroups: ["cluster.open-cluster-management.io"]
-  resources: ["managedclusterscores"]
+  resources: ["managedclusterscalars"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 # Allow controller to manage placements/placementdecisions
 - apiGroups: ["cluster.open-cluster-management.io"]

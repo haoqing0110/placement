@@ -15,6 +15,7 @@ import (
 	clusterapiv1alpha1 "open-cluster-management.io/api/cluster/v1alpha1"
 	"open-cluster-management.io/placement/pkg/plugins"
 	"open-cluster-management.io/placement/pkg/plugins/balance"
+	"open-cluster-management.io/placement/pkg/plugins/customize"
 	"open-cluster-management.io/placement/pkg/plugins/predicate"
 	"open-cluster-management.io/placement/pkg/plugins/resource"
 	"open-cluster-management.io/placement/pkg/plugins/steady"
@@ -29,7 +30,6 @@ type Scheduler interface {
 		ctx context.Context,
 		placement *clusterapiv1alpha1.Placement,
 		clusters []*clusterapiv1.ManagedCluster,
-		//		scorer ScoreManager,
 	) (ScheduleResult, error)
 }
 
@@ -130,9 +130,9 @@ func NewPluginScheduler(handle plugins.Handle) *pluginScheduler {
 		prioritizers: []plugins.Prioritizer{
 			balance.New(handle),
 			steady.New(handle),
+			customize.New(handle),
 			resource.NewResourcePrioritizerBuilder(handle).WithPrioritizerName("ResourceAllocatableCPU").Build(),
 			resource.NewResourcePrioritizerBuilder(handle).WithPrioritizerName("ResourceAllocatableMemory").Build(),
-			resource.NewResourcePrioritizerBuilder(handle).WithPrioritizerName("Customized").Build(),
 		},
 		prioritizerWeights: defaultPrioritizerConfig,
 	}
@@ -281,7 +281,11 @@ func mergeWeights(defaultWeight map[string]int32, customizedWeight []clusterapiv
 	}
 	// override the default weight
 	for _, c := range customizedWeight {
-		weights[c.Name] = c.Weight
+		if strings.HasSuffix(c.Name, "Customize") {
+			weights["Customize"] = c.Weight
+		} else {
+			weights[c.Name] = c.Weight
+		}
 	}
 	return weights
 }
