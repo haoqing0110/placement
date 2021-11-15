@@ -2,7 +2,6 @@ package customize
 
 import (
 	"context"
-	"reflect"
 	"sort"
 	"strings"
 
@@ -25,17 +24,33 @@ const (
 var _ plugins.Prioritizer = &CustomizePrioritizer{}
 
 type CustomizePrioritizer struct {
-	handle plugins.Handle
+	handle          plugins.Handle
+	prioritizerName string
 }
 
-func New(handle plugins.Handle) *CustomizePrioritizer {
-	return &CustomizePrioritizer{
-		handle: handle,
+type CustomizePrioritizerBuilder struct {
+	customizePrioritizer *CustomizePrioritizer
+}
+
+func NewCustomizePrioritizerBuilder(handle plugins.Handle) *CustomizePrioritizerBuilder {
+	return &CustomizePrioritizerBuilder{
+		customizePrioritizer: &CustomizePrioritizer{
+			handle: handle,
+		},
 	}
 }
 
+func (r *CustomizePrioritizerBuilder) WithPrioritizerName(name string) *CustomizePrioritizerBuilder {
+	r.customizePrioritizer.prioritizerName = name
+	return r
+}
+
+func (r *CustomizePrioritizerBuilder) Build() *CustomizePrioritizer {
+	return r.customizePrioritizer
+}
+
 func (r *CustomizePrioritizer) Name() string {
-	return reflect.TypeOf(*r).Name()
+	return r.prioritizerName
 }
 
 func (r *CustomizePrioritizer) Description() string {
@@ -46,45 +61,42 @@ func (r *CustomizePrioritizer) PreScore(ctx context.Context, placement *clustera
 	clusterClient := r.handle.ClusterClient()
 	kubeClient := r.handle.KubeClient()
 
-	for _, config := range placement.Spec.PrioritizerPolicy.Configurations {
-		for _, cluster := range clusters {
-			namespace := cluster.Name
-			name := strings.ToLower(strings.TrimPrefix(config.Name, "Customize"))
-			prioritizerName := config.Name
+	for _, cluster := range clusters {
+		namespace := cluster.Name
+		name := strings.ToLower(strings.TrimPrefix(r.Name(), "Customize"))
 
-			// TODO: delete below code before merge PR, only used for prototype.
-			// create ManagedClusterScore namespace
-			ns := &corev1.Namespace{
+		// TODO: delete below code before merge PR, only used for prototype.
+		// create ManagedClusterScore namespace
+		ns := &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: namespace,
+			},
+		}
+		_, err := kubeClient.CoreV1().Namespaces().Create(context.Background(), ns, metav1.CreateOptions{})
+		if err != nil {
+			klog.Infof("%s", err)
+		}
+		// TODO: delete above code before merge PR, only used for prototype.
+
+		// create ManagedClusterScore CR
+		_, err = clusterClient.ClusterV1alpha1().ManagedClusterScalars(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		switch {
+		case errors.IsNotFound(err):
+			managedClusterScore := &clusterapiv1alpha1.ManagedClusterScalar{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: namespace,
+					Name:      name,
+					Namespace: namespace,
+				},
+				Spec: clusterapiv1alpha1.ManagedClusterScalarSpec{
+					PrioritizerName: r.Name(),
 				},
 			}
-			_, err := kubeClient.CoreV1().Namespaces().Create(context.Background(), ns, metav1.CreateOptions{})
+			_, err := clusterClient.ClusterV1alpha1().ManagedClusterScalars(namespace).Create(context.Background(), managedClusterScore, metav1.CreateOptions{})
 			if err != nil {
-				klog.Infof("%s", err)
-			}
-			// TODO: delete above code before merge PR, only used for prototype.
-
-			// create ManagedClusterScore CR
-			_, err = clusterClient.ClusterV1alpha1().ManagedClusterScalars(namespace).Get(context.Background(), name, metav1.GetOptions{})
-			switch {
-			case errors.IsNotFound(err):
-				managedClusterScore := &clusterapiv1alpha1.ManagedClusterScalar{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      name,
-						Namespace: namespace,
-					},
-					Spec: clusterapiv1alpha1.ManagedClusterScalarSpec{
-						PrioritizerName: prioritizerName,
-					},
-				}
-				_, err := clusterClient.ClusterV1alpha1().ManagedClusterScalars(namespace).Create(context.Background(), managedClusterScore, metav1.CreateOptions{})
-				if err != nil {
-					return err
-				}
-			case err != nil:
 				return err
 			}
+		case err != nil:
+			return err
 		}
 	}
 
@@ -92,32 +104,27 @@ func (r *CustomizePrioritizer) PreScore(ctx context.Context, placement *clustera
 }
 
 func (r *CustomizePrioritizer) Score(ctx context.Context, placement *clusterapiv1alpha1.Placement, clusters []*clusterapiv1.ManagedCluster) (map[string]int64, error) {
-	clusterscores := map[string]int64{}
+	scores := map[string]int64{}
 
-	for _, config := range placement.Spec.PrioritizerPolicy.Configurations {
-		prioritizerscores := map[string]int64{}
-		// get cluster scores of each prioritizer
-		for _, cluster := range clusters {
-			namespace := cluster.Name
-			name := strings.ToLower(strings.TrimPrefix(config.Name, "Customize"))
+	for _, cluster := range clusters {
+		namespace := cluster.Name
+		name := strings.ToLower(strings.TrimPrefix(r.Name(), "Customize"))
 
-			// get ManagedClusterScore CR
-			managedClusterScalar, err := r.handle.ClusterClient().ClusterV1alpha1().ManagedClusterScalars(namespace).Get(context.Background(), name, metav1.GetOptions{})
-			if err != nil {
-				klog.Errorf("Getting ManagedClusterScore failed :%s", err)
-			}
-			prioritizerscores[cluster.Name] = managedClusterScalar.Status.Scalar
-			klog.Errorf("HQ : Getting ManagedClusterScore :%s", managedClusterScalar.Status.Scalar)
+		// get ManagedClusterScalar CR
+		managedClusterScalar, err := r.handle.ClusterClient().ClusterV1alpha1().ManagedClusterScalars(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		if err != nil {
+			klog.Errorf("Getting ManagedClusterScalar failed :%s", err)
 		}
-		// normalize cluster scores of each prioritizer
-		normalizeScores(prioritizerscores)
-		// add up prioritizer scores to total cluster scores
-		for _, cluster := range clusters {
-			clusterscores[cluster.Name] += prioritizerscores[cluster.Name]
-		}
+
+		// get ManagedClusterScalar score
+		scores[cluster.Name] = managedClusterScalar.Status.Scalar
+		klog.Infof("Getting ManagedClusterScalar name:%s, cluster(namespace): %s, score:%s", name, namespace, managedClusterScalar.Status.Scalar)
 	}
 
-	return clusterscores, nil
+	// normalize cluster scores of each prioritizer
+	normalizeScores(scores)
+
+	return scores, nil
 }
 
 func normalizeScores(scores map[string]int64) {

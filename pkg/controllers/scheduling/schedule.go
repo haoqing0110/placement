@@ -21,6 +21,13 @@ import (
 	"open-cluster-management.io/placement/pkg/plugins/steady"
 )
 
+const (
+	Balance         string = "Balance"
+	Steady          string = "Steady"
+	ResourcePrefix  string = "Resource"
+	CustomizePrefix string = "Customize"
+)
+
 // PrioritizerScore defines the score for each cluster
 type PrioritizerScore map[string]int64
 
@@ -112,27 +119,21 @@ func (s *schedulerHandler) KubeClient() *kubernetes.Clientset {
 // Balane and Steady weight 1, others weight 0.
 // The default weight can be replaced by each placement's PrioritizerConfigs.
 var defaultPrioritizerConfig = map[string]int32{
-	"Balance": 1,
-	"Steady":  1,
+	Balance: 1,
+	Steady:  1,
 }
 
 type pluginScheduler struct {
+	handle             plugins.Handle
 	filters            []plugins.Filter
-	prioritizers       []plugins.Prioritizer
 	prioritizerWeights map[string]int32
 }
 
 func NewPluginScheduler(handle plugins.Handle) *pluginScheduler {
 	return &pluginScheduler{
+		handle: handle,
 		filters: []plugins.Filter{
 			predicate.New(handle),
-		},
-		prioritizers: []plugins.Prioritizer{
-			balance.New(handle),
-			steady.New(handle),
-			customize.New(handle),
-			resource.NewResourcePrioritizerBuilder(handle).WithPrioritizerName("ResourceAllocatableCPU").Build(),
-			resource.NewResourcePrioritizerBuilder(handle).WithPrioritizerName("ResourceAllocatableMemory").Build(),
 		},
 		prioritizerWeights: defaultPrioritizerConfig,
 	}
@@ -166,39 +167,37 @@ func (s *pluginScheduler) Schedule(
 		results.filteredRecords[strings.Join(filterPipline, ",")] = filtered
 	}
 
-	// get weight for each prioritizers
+	// prioritize clusters
+	// 1. get weight for each prioritizers
+	// Steady: 1, Balance:1, CustomizeAAA:3, CustomizeBBB:2
 	weights, err := getWeights(s.prioritizerWeights, placement)
 	if err != nil {
 		return nil, err
 	}
 
-	// score clusters
+	// 2. get prioritizers for each placement with weight > 0
+	prioritizers := getPrioritizers(weights, s.handle)
+
+	// 3. score clusters
 	scoreSum := PrioritizerScore{}
 	for _, cluster := range filtered {
 		scoreSum[cluster.Name] = 0
 	}
-	for _, p := range s.prioritizers {
-		// If weight is 0 (set to 0 or not defined in map), skip Score().
-		weight := weights[p.Name()]
-		if weight == 0 {
-			results.scoreRecords = append(results.scoreRecords, PrioritizerResult{Name: p.Name(), Weight: weight, Scores: nil})
-			continue
-		}
-
+	for _, p := range prioritizers {
+		// Create CRs before Score()
 		err := p.PreScore(ctx, placement, filtered)
-		// placment.config, find customized-xxx, create customized-xxx CR.
 		if err != nil {
 			klog.Warningf("Prioritizer %s PreScore() failed: %s", p.Name(), err)
 		}
 
+		// Score
 		score, err := p.Score(ctx, placement, filtered)
-		// placment,config, get data from customized-xxx. sum-up score.
-		// data1 = customized-xxx * weight1
-		// data2 = customized-yyy * weight2
 		if err != nil {
 			return nil, err
 		}
 
+		// Record prioritizer score and weight
+		weight := weights[p.Name()]
 		results.scoreRecords = append(results.scoreRecords, PrioritizerResult{Name: p.Name(), Weight: weight, Scores: score})
 
 		// The final score is a sum of each prioritizer score * weight.
@@ -210,7 +209,7 @@ func (s *pluginScheduler) Schedule(
 
 	}
 
-	// Sort cluster by score, if score is equal, sort by name
+	// 4. Sort cluster by score, if score is equal, sort by name
 	sort.SliceStable(filtered, func(i, j int) bool {
 		if scoreSum[filtered[i].Name] == scoreSum[filtered[j].Name] {
 			return filtered[i].Name < filtered[j].Name
@@ -281,13 +280,30 @@ func mergeWeights(defaultWeight map[string]int32, customizedWeight []clusterapiv
 	}
 	// override the default weight
 	for _, c := range customizedWeight {
-		if strings.HasSuffix(c.Name, "Customize") {
-			weights["Customize"] = c.Weight
-		} else {
-			weights[c.Name] = c.Weight
-		}
+		weights[c.Name] = c.Weight
 	}
 	return weights
+}
+
+// Steady: 1, Balance:1, CustomizeAAA:3, CustomizeBBB:2
+func getPrioritizers(weights map[string]int32, handle plugins.Handle) []plugins.Prioritizer {
+	result := []plugins.Prioritizer{}
+	for k, v := range weights {
+		if v <= 0 {
+			continue
+		}
+		switch {
+		case k == Balance:
+			result = append(result, balance.New(handle))
+		case k == Steady:
+			result = append(result, steady.New(handle))
+		case strings.HasPrefix(k, CustomizePrefix):
+			result = append(result, customize.NewCustomizePrioritizerBuilder(handle).WithPrioritizerName(k).Build())
+		case strings.HasPrefix(k, ResourcePrefix):
+			result = append(result, resource.NewResourcePrioritizerBuilder(handle).WithPrioritizerName(k).Build())
+		}
+	}
+	return result
 }
 
 func (r *scheduleResult) FilterResults() []FilterResult {
