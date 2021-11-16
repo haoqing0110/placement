@@ -2,6 +2,7 @@ package customize
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strings"
 
@@ -60,6 +61,8 @@ func (r *CustomizePrioritizer) Description() string {
 func (r *CustomizePrioritizer) PreScore(ctx context.Context, placement *clusterapiv1alpha1.Placement, clusters []*clusterapiv1.ManagedCluster) error {
 	clusterClient := r.handle.ClusterClient()
 	kubeClient := r.handle.KubeClient()
+	total := float64(len(clusters))
+	created := 0.0
 
 	for _, cluster := range clusters {
 		namespace := cluster.Name
@@ -72,14 +75,13 @@ func (r *CustomizePrioritizer) PreScore(ctx context.Context, placement *clustera
 				Name: namespace,
 			},
 		}
-		_, err := kubeClient.CoreV1().Namespaces().Create(context.Background(), ns, metav1.CreateOptions{})
-		if err != nil {
+		if _, err := kubeClient.CoreV1().Namespaces().Create(context.Background(), ns, metav1.CreateOptions{}); err != nil {
 			klog.Infof("%s", err)
 		}
 		// TODO: delete above code before merge PR, only used for prototype.
 
-		// create ManagedClusterScore CR
-		_, err = clusterClient.ClusterV1alpha1().ManagedClusterScalars(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		// create ManagedClusterScalar CR
+		cr, err := clusterClient.ClusterV1alpha1().ManagedClusterScalars(namespace).Get(context.Background(), name, metav1.GetOptions{})
 		switch {
 		case errors.IsNotFound(err):
 			managedClusterScore := &clusterapiv1alpha1.ManagedClusterScalar{
@@ -91,13 +93,20 @@ func (r *CustomizePrioritizer) PreScore(ctx context.Context, placement *clustera
 					PrioritizerName: r.Name(),
 				},
 			}
-			_, err := clusterClient.ClusterV1alpha1().ManagedClusterScalars(namespace).Create(context.Background(), managedClusterScore, metav1.CreateOptions{})
-			if err != nil {
+			if _, err := clusterClient.ClusterV1alpha1().ManagedClusterScalars(namespace).Create(context.Background(), managedClusterScore, metav1.CreateOptions{}); err != nil {
 				return err
 			}
 		case err != nil:
 			return err
+		case err == nil && len(cr.Status.Conditions) > 0:
+			created += 1.0
 		}
+
+	}
+
+	// valid if 80% CRs are ready
+	if created/total < 0.8 {
+		return fmt.Errorf("avaliable ManagedClusterScalar CRs of %s is less than 80%", r.Name())
 	}
 
 	return nil
@@ -127,6 +136,7 @@ func (r *CustomizePrioritizer) Score(ctx context.Context, placement *clusterapiv
 	return scores, nil
 }
 
+// normalize score from -100 to 100
 func normalizeScores(scores map[string]int64) {
 	if len(scores) <= 0 {
 		return

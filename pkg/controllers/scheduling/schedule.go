@@ -22,10 +22,10 @@ import (
 )
 
 const (
-	Balance         string = "Balance"
-	Steady          string = "Steady"
-	ResourcePrefix  string = "Resource"
-	CustomizePrefix string = "Customize"
+	PrioritizerBalance         string = "Balance"
+	PrioritizerSteady          string = "Steady"
+	PrioritizerResourcePrefix  string = "Resource"
+	PrioritizerCustomizePrefix string = "Customize"
 )
 
 // PrioritizerScore defines the score for each cluster
@@ -119,8 +119,8 @@ func (s *schedulerHandler) KubeClient() *kubernetes.Clientset {
 // Balane and Steady weight 1, others weight 0.
 // The default weight can be replaced by each placement's PrioritizerConfigs.
 var defaultPrioritizerConfig = map[string]int32{
-	Balance: 1,
-	Steady:  1,
+	PrioritizerBalance: 1,
+	PrioritizerSteady:  1,
 }
 
 type pluginScheduler struct {
@@ -188,6 +188,7 @@ func (s *pluginScheduler) Schedule(
 		err := p.PreScore(ctx, placement, filtered)
 		if err != nil {
 			klog.Warningf("Prioritizer %s PreScore() failed: %s", p.Name(), err)
+			continue
 		}
 
 		// Score
@@ -293,13 +294,13 @@ func getPrioritizers(weights map[string]int32, handle plugins.Handle) []plugins.
 			continue
 		}
 		switch {
-		case k == Balance:
+		case k == PrioritizerBalance:
 			result = append(result, balance.New(handle))
-		case k == Steady:
+		case k == PrioritizerSteady:
 			result = append(result, steady.New(handle))
-		case strings.HasPrefix(k, CustomizePrefix):
+		case strings.HasPrefix(k, PrioritizerCustomizePrefix):
 			result = append(result, customize.NewCustomizePrioritizerBuilder(handle).WithPrioritizerName(k).Build())
-		case strings.HasPrefix(k, ResourcePrefix):
+		case strings.HasPrefix(k, PrioritizerResourcePrefix):
 			result = append(result, resource.NewResourcePrioritizerBuilder(handle).WithPrioritizerName(k).Build())
 		}
 	}
