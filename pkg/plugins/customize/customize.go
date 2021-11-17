@@ -126,8 +126,12 @@ func (r *CustomizePrioritizer) Score(ctx context.Context, placement *clusterapiv
 		}
 
 		// get ManagedClusterScalar score
-		scores[cluster.Name] = managedClusterScalar.Status.Scalar
-		klog.Infof("Getting ManagedClusterScalar name:%s, cluster(namespace): %s, score:%s", name, namespace, managedClusterScalar.Status.Scalar)
+		if managedClusterScalar.Spec.PrioritizerName == r.Name() {
+			scores[cluster.Name] = managedClusterScalar.Status.Scalar
+			klog.Infof("Getting ManagedClusterScalar name:%s, cluster(namespace): %s, score:%s", name, namespace, managedClusterScalar.Status.Scalar)
+		} else {
+			klog.Warningf("ManagedClusterScalar PrioritizerName %s and CustomizePrioritizer name %s mismatch", managedClusterScalar.Spec.PrioritizerName, r.Name())
+		}
 	}
 
 	// normalize cluster scores of each prioritizer
